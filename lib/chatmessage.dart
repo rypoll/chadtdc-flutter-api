@@ -2,46 +2,60 @@ import 'package:flutter/material.dart';
 import 'package:velocity_x/velocity_x.dart';
 
 class ChatMessage extends StatelessWidget {
-  const ChatMessage(
-      {super.key,
-      required this.text,
-      required this.sender,
-      this.isImage = false});
-
   final String text;
   final String sender;
   final bool isImage;
 
+  const ChatMessage({
+    Key? key,
+    required this.text,
+    required this.sender,
+    this.isImage = false,
+  }) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(sender)
-            .text
-            .subtitle1(context)
-            .make()
-            .box
-            .color(sender == "user" ? Vx.red200 : Vx.green200)
-            .p16
-            .rounded
-            .alignCenter
-            .makeCentered(),
-        Expanded(
-          child: isImage
-              ? AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.network(
-                    text,
-                    loadingBuilder: (context, child, loadingProgress) =>
-                        loadingProgress == null
-                            ? child
-                            : const CircularProgressIndicator.adaptive(),
+    return Container(
+      color: sender == "user" ? Color(0xFF0A0B0E) : Color(0xFF131519),
+      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: Color(0xFF20699d),
+            backgroundImage: sender == "bot"
+                ? AssetImage('assets/images/ic_launcher.png')
+                : null,
+            child: sender == "bot" ? null : Container(),
+          ),
+          SizedBox(width: 10),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    sender == "user" ? "YOU" : "CHADTDC",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
                   ),
-                )
-              : text.trim().text.bodyText1(context).make().px8(),
-        ),
-      ],
-    ).py8();
+                ),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

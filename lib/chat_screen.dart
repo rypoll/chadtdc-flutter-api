@@ -2,9 +2,13 @@ import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:velocity_x/velocity_x.dart';
-
+import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:cookie_jar/cookie_jar.dart';
 import 'chatmessage.dart';
 import 'threedots.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -17,16 +21,20 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final List<ChatMessage> _messages = [];
   late OpenAI? chatGPT;
-  bool _isImageSearch = false;
-
+  final http.Client client = http.Client();
+  late Dio dio;
+  late CookieJar cookieJar;
   bool _isTyping = false;
 
   @override
   void initState() {
+    super.initState();
+    dio = Dio();
+    cookieJar = CookieJar();
+    dio.interceptors.add(CookieManager(cookieJar));
     chatGPT = OpenAI.instance.build(
         token: dotenv.env["API_KEY"],
-        baseOption: HttpSetup(receiveTimeout: 60000));
-    super.initState();
+        baseOption: HttpSetup(receiveTimeout: Duration(milliseconds: 60000)));
   }
 
   @override
@@ -36,10 +44,9 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  // Link for api - https://beta.openai.com/account/api-keys
-
   void _sendMessage() async {
     if (_controller.text.isEmpty) return;
+
     ChatMessage message = ChatMessage(
       text: _controller.text,
       sender: "user",
@@ -53,19 +60,21 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _controller.clear();
 
-    if (_isImageSearch) {
-      final request = GenerateImage(message.text, 1, size: "256x256");
+    var url = 'https://chad-tdc.nw.r.appspot.com/api/chat';
+    var data = {'in-0': message.text};
 
-      final response = await chatGPT!.generateImage(request);
-      Vx.log(response!.data!.last!.url!);
-      insertNewData(response.data!.last!.url!, isImage: true);
+    var response = await dio.post(url, data: json.encode(data), options: Options(
+      contentType: Headers.jsonContentType,
+    ));
+
+    if (response.statusCode == 200) {
+      var decodedResponse = response.data;
+      String botResponse = decodedResponse['out-0'];
+      insertNewData(botResponse, isImage: false);
+      List<Cookie> cookies = await cookieJar.loadForRequest(Uri.parse('https://chad-tdc.nw.r.appspot.com/'));
+      print("Stored Cookies: $cookies");
     } else {
-      final request =
-          CompleteText(prompt: message.text, model: kTranslateModelV3);
-
-      final response = await chatGPT!.onCompleteText(request: request);
-      Vx.log(response!.choices[0].text);
-      insertNewData(response.choices[0].text, isImage: false);
+      print('Failed to send message: ${response.statusCode}');
     }
   }
 
@@ -83,65 +92,72 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildTextComposer() {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _controller,
-            onSubmitted: (value) => _sendMessage(),
-            decoration: const InputDecoration.collapsed(
-                hintText: "Question/description"),
-          ),
-        ),
-        ButtonBar(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: () {
-                _isImageSearch = false;
-                _sendMessage();
-              },
+    return Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              onSubmitted: (value) => _sendMessage(),
+              decoration: InputDecoration(
+                hintText: "Type your message",
+                filled: true,
+                fillColor: Color(0xFF101112),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(60),
+                  borderSide: BorderSide(color: Color(0xFF20699d)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(60),
+                  borderSide: BorderSide(color: Color(0xFF20699d)),
+                ),
+              ),
             ),
-            TextButton(
-                onPressed: () {
-                  _isImageSearch = true;
-                  _sendMessage();
-                },
-                child: const Text("Generate Image"))
-          ],
-        ),
-      ],
-    ).px16();
+          ),
+          SizedBox(width: 25),
+          CircleAvatar(
+            backgroundColor: Color(0xFF20699d),
+            child: IconButton(
+              icon: Icon(Icons.send, color: Colors.white),
+              onPressed: _sendMessage,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text("ChatGPT & Dall-E2 Demo")),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Flexible(
-                  child: ListView.builder(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text("ChadTDC - The Date Coach"),
+        backgroundColor: Colors.black87,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
                 reverse: true,
-                padding: Vx.m8,
+                padding: EdgeInsets.zero,
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
                   return _messages[index];
                 },
-              )),
-              if (_isTyping) const ThreeDots(),
-              const Divider(
-                height: 1.0,
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: context.cardColor,
-                ),
-                child: _buildTextComposer(),
-              )
-            ],
-          ),
-        ));
+            ),
+            if (_isTyping) const ThreeDots(),
+            const Divider(height: 1.0),
+            Container(
+              color: Color(0xFF101112),
+              child: _buildTextComposer(),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

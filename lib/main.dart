@@ -19,9 +19,20 @@ class MyApp extends StatelessWidget {
       title: 'ChatGPT Demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.green,
-        useMaterial3: true,
+        fontFamily: 'Inter',
+        primarySwatch: Colors.blue,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.black87,
+        ),
+        textTheme: TextTheme(
+          bodyLarge: TextStyle(fontFamily: 'Inter'),
+          bodyMedium: TextStyle(fontFamily: 'Inter'),
+          // Add other text styles if you want
+        ),
       ),
+
       home: const ChatScreen(),
     );
   }
